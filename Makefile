@@ -1,5 +1,6 @@
 PORT ?= 8000
-
+build:
+	./build.sh
 install:
 	composer install
 lint:
