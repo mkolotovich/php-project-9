@@ -13,6 +13,6 @@ WORKDIR /app
 COPY . .
 
 RUN composer install
-RUN ./build.sh
+RUN ./build.sh -q
 
 CMD ["bash", "-c", "make start"]
