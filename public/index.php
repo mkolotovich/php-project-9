@@ -10,10 +10,11 @@ session_start();
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 $databaseUrl = parse_url($_ENV['DATABASE_URL']);
+$port = $_ENV['PORT'];
 $conStr = sprintf(
     "pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s",
     $databaseUrl['host'],
-    $databaseUrl['port'],
+    $port,
     ltrim($databaseUrl['path'], '/'),
     $databaseUrl['user'],
     $databaseUrl['pass']
