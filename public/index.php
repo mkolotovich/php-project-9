@@ -10,11 +10,10 @@ session_start();
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
 $dotenv->load();
 $databaseUrl = parse_url($_ENV['DATABASE_URL']);
-$port = 5432;
 $conStr = sprintf(
     "pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s",
     $databaseUrl['host'],
-    $port,
+    $_ENV['PORT'],
     ltrim($databaseUrl['path'], '/'),
     $databaseUrl['user'],
     $databaseUrl['pass']
@@ -22,8 +21,11 @@ $conStr = sprintf(
 
 $container = new Container();
 $container->set('renderer', function () {
-    return new \Slim\Views\PhpRenderer(__DIR__ . '/../templates');
+    $renderer = new \Slim\Views\PhpRenderer(__DIR__ . '/../templates');
+    $renderer->setLayout('layout.php');
+    return $renderer;
 });
+
 $container->set('flash', function () {
     return new \Slim\Flash\Messages();
 });
@@ -40,19 +42,25 @@ $app->get('/', function ($request, $response) {
 
 $router = $app->getRouteCollector()->getRouteParser();
 
-$app->get('/urls/{id}', function ($request, $response, array $args) use ($conStr) {
+$app->get('/urls/{id}', function ($request, $response, array $args) use ($conStr, $router) {
     $pdo = new \PDO($conStr);
     $id = $args['id'];
     $sql ='SELECT name, created_at FROM urls WHERE id=?';
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$id]);
     [$url, $date] = $stmt->fetch();
+    $sql ="SELECT id, created_at FROM url_checks WHERE url_id=? ORDER BY id DESC";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$id]);
+    $checks = $stmt->fetchAll();
     $messages = $this->get('flash')->getMessages();
     $params = [
         'url' => $url,
         'date' => $date,
         'id' => $id,
         'errors' => $messages,
+        'router' => $router,
+        'checks' => $checks
     ];
     return $this->get('renderer')->render($response, 'viewPage.phtml', $params);
 })->setName('renderUrlPage');
@@ -101,7 +109,8 @@ $app->post('/urls', function ($request, $response) use ($router, $conStr) {
 
 $app->get('/urls', function ($request, $response) use ($router, $conStr) {
     $pdo = new \PDO($conStr);
-    $sql = "SELECT * FROM urls ORDER BY urls.id DESC";
+    $sql = "SELECT urls.id, urls.name, MAX(url_checks.created_at), MAX(status_code) FROM urls LEFT JOIN url_checks ON
+                      urls.id=url_checks.url_id GROUP BY urls.id ORDER BY urls.id DESC";
     $stmt = $pdo->prepare($sql);
     $stmt->execute();
     $urls = $stmt->fetchAll();
@@ -112,5 +121,17 @@ $app->get('/urls', function ($request, $response) use ($router, $conStr) {
     ];
     return $this->get('renderer')->render($response, 'viewPages.phtml', $params);
 })->setName('main');
+
+$app->post('/urls/{id}/checks', function ($request, $response, array $args) use ($router, $conStr) {
+    $pdo = new \PDO($conStr);
+    $id = $args['id'];
+    $sql = 'INSERT INTO url_checks(url_id, created_at) VALUES(:id, :date)';
+    $stmt = $pdo->prepare($sql);
+    $stmt->bindValue(':id', $id);
+    $stmt->bindValue(':date', Carbon::now());
+    $stmt->execute();
+    $this->get('flash')->addMessage('success', 'Страница успешно проверена');
+    return $response->withRedirect($router->urlFor('renderUrlPage', ['id' => $id]), 302);
+})->setName('checkPage');
 
 $app->run();
