@@ -11,9 +11,9 @@ RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" \
 WORKDIR /app
 
 COPY . .
+COPY run_migrations.sh /
 
-RUN chmod +x ./build.sh
+RUN chmod +x /run_migrations.sh
 RUN composer install
-RUN ./build.sh
 
-CMD ["bash", "-c", "make start"]
+CMD ["/run_migrations.sh", "bash", "-c", "make start"]
