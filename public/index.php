@@ -49,7 +49,7 @@ $app->get('/urls/{id}', function ($request, $response, array $args) use ($conStr
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$id]);
     [$url, $date] = $stmt->fetch();
-    $sql ="SELECT id, created_at FROM url_checks WHERE url_id=? ORDER BY id DESC";
+    $sql ="SELECT id, status_code, created_at FROM url_checks WHERE url_id=? ORDER BY id DESC";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$id]);
     $checks = $stmt->fetchAll();
@@ -125,13 +125,29 @@ $app->get('/urls', function ($request, $response) use ($router, $conStr) {
 $app->post('/urls/{id}/checks', function ($request, $response, array $args) use ($router, $conStr) {
     $pdo = new \PDO($conStr);
     $id = $args['id'];
-    $sql = 'INSERT INTO url_checks(url_id, created_at) VALUES(:id, :date)';
+    $sql = "SELECT name FROM urls WHERE id = ?";
     $stmt = $pdo->prepare($sql);
-    $stmt->bindValue(':id', $id);
-    $stmt->bindValue(':date', Carbon::now());
-    $stmt->execute();
-    $this->get('flash')->addMessage('success', 'Страница успешно проверена');
-    return $response->withRedirect($router->urlFor('renderUrlPage', ['id' => $id]), 302);
+    $stmt->execute([$id]);
+    [$name] = $stmt->fetch();
+    try {
+        $client = new GuzzleHttp\Client();
+        $res = $client->get($name);
+        if ($res->getStatusCode()) {
+            $sql = 'INSERT INTO url_checks(url_id, status_code, created_at) VALUES(:id, :status, :date)';
+            $stmt = $pdo->prepare($sql);
+            $stmt->bindValue(':id', $id);
+            $stmt->bindValue(':status', $res->getStatusCode());
+            $stmt->bindValue(':date', Carbon::now());
+            $stmt->execute();
+            $this->get('flash')->addMessage('success', 'Страница успешно проверена');
+            return $response->withRedirect($router->urlFor('renderUrlPage', ['id' => $id]), 302);
+        }
+    } catch (\Exception $e) {
+        $this->get('flash')->addMessage('error', 'Произошла ошибка при проверке');
+        return $response->withRedirect($router->urlFor('renderUrlPage', ['id' => $id]), 302);
+    }
+
+
 })->setName('checkPage');
 
 $app->run();

@@ -19,7 +19,7 @@
                                 <a href="<?=$router->urlFor('renderUrlPage', ['id' => $url['id']])?>"><?= $url['name']?></a>
                             </td>
                             <td><?= $url[2]?></td>
-                            <td>{{status_code}}</td>
+                            <td><?= $url['max'] ?></td>
                         </tr>
                     <?php endforeach ?>
                 </tbody>
