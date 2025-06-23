@@ -45,11 +45,11 @@ $router = $app->getRouteCollector()->getRouteParser();
 $app->get('/urls/{id}', function ($request, $response, array $args) use ($conStr, $router) {
     $pdo = new \PDO($conStr);
     $id = $args['id'];
-    $sql ='SELECT name, created_at FROM urls WHERE id=?';
+    $sql = 'SELECT name, created_at FROM urls WHERE id=?';
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$id]);
     [$url, $date] = $stmt->fetch();
-    $sql ="SELECT id, status_code, h1, title, description, created_at FROM url_checks WHERE url_id=? ORDER BY id DESC";
+    $sql = "SELECT id, status_code, h1, title, description, created_at FROM url_checks WHERE url_id=? ORDER BY id DESC";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$id]);
     $checks = $stmt->fetchAll();
@@ -73,7 +73,7 @@ $app->post('/urls', function ($request, $response) use ($router, $conStr) {
     $validator->rule('required', 'url.name');
     $validator->rule('url', 'url.name');
     $validator->rule('lengthMax', 'url.name', $urlMaxLen);
-    if($validator->validate()) {
+    if ($validator->validate()) {
         $parsedUrl = parse_url($url['name']);
         $normalizedUrl = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
         $sql = 'SELECT id FROM urls WHERE name=?';
@@ -96,10 +96,10 @@ $app->post('/urls', function ($request, $response) use ($router, $conStr) {
     }
     if (in_array("Url.name is required", $validator->errors()['url.name'])) {
         $error = 'URL не должен быть пустым';
-    } else if(in_array("Url.name is not a valid URL", $validator->errors()['url.name'])) {
+    } elseif (in_array("Url.name is not a valid URL", $validator->errors()['url.name'])) {
         $error = 'Некорректный URL';
     } else {
-       $error = 'URL превышает 255 символов';
+        $error = 'URL превышает 255 символов';
     }
     $params = [
         'errors' => [$error]
@@ -134,7 +134,10 @@ $app->post('/urls/{id}/checks', function ($request, $response, array $args) use 
         $res = $client->get($name);
         if ($res->getStatusCode()) {
             $html = new Document($name, true);
-            $sql = 'INSERT INTO url_checks(url_id, status_code, h1, title, description, created_at) VALUES(:id, :status, :h1, :title, :description, :date)';
+            $sql = <<<EOT
+            INSERT INTO url_checks(url_id, status_code, h1, title, description, created_at) 
+            VALUES(:id, :status, :h1, :title, :description, :date)
+            EOT;
             $stmt = $pdo->prepare($sql);
             $stmt->bindValue(':id', $id);
             $stmt->bindValue(':status', $res->getStatusCode());
