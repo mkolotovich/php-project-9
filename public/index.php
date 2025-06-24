@@ -6,14 +6,21 @@ use Slim\Factory\AppFactory;
 use DI\Container;
 use Carbon\Carbon;
 use DiDom\Document;
+
 session_start();
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
-$dotenv->load();
-$databaseUrl = parse_url($_ENV['DATABASE_URL']);
+if (file_exists(realpath(implode('/', [__DIR__ . '/../', '.env'])))) {
+    $dotenv->load();
+    $databaseUrl = parse_url($_ENV['DATABASE_URL']);
+} else {
+    $databaseUrl = parse_url(getenv('DATABASE_URL'));
+}
+
+$port = file_exists(realpath(implode('/', [__DIR__ . '/../', '.env']))) ? $_ENV['PORT'] : getenv('PORT');
 $conStr = sprintf(
     "pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s",
     $databaseUrl['host'],
-    $_ENV['PORT'],
+    $port,
     ltrim($databaseUrl['path'], '/'),
     $databaseUrl['user'],
     $databaseUrl['pass']
