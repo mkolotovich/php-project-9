@@ -16,7 +16,8 @@ if (file_exists(realpath(implode('/', [__DIR__ . '/../', '.env'])))) {
     $databaseUrl = parse_url(getenv('DATABASE_URL'));
 }
 
-$port = file_exists(realpath(implode('/', [__DIR__ . '/../', '.env']))) ? $_ENV['PORT'] : getenv('PORT');
+$port = $databaseUrl['port'] ? $databaseUrl['port'] : 5432;
+
 $conStr = sprintf(
     "pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s",
     $databaseUrl['host'],

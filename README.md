@@ -5,10 +5,7 @@
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=mkolotovich_php-project-9&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=mkolotovich_php-project-9)
 
 ## Описание
-Page Analyzer – это сайт, который анализирует указанные страницы на SEO-пригодность по аналогии с PageSpeed Insights:
-[главная страница](https://cdn2.hexlet.io/derivations/image/original/eyJpZCI6IjhmOGQ0NDU4MTQzODM0MzAzZjVlYzFmYTQxMjU0YjhjLnBuZyIsInN0b3JhZ2UiOiJjYWNoZSJ9?signature=410b727cc3ab6caf1344391460b60f863c79b7116dbbcc8d05fd85209b8dc116)
-[страница добавленных сайтов](https://cdn2.hexlet.io/derivations/image/original/eyJpZCI6IjRjOTY1OThiYTU1ZTdmNWUwMDhjNGE3ZjEwZmUzZTk4LnBuZyIsInN0b3JhZ2UiOiJjYWNoZSJ9?signature=aea2b053c45d546d7a231e3e87bac8eca22b8889b19879545b1afff56dbc6761)
-[страница проверок сайта](https://cdn2.hexlet.io/derivations/image/original/eyJpZCI6IjcxYWJkMzRjM2ZmMTFmMDVlYzJmZTBlMDRkM2U3MGM5LnBuZyIsInN0b3JhZ2UiOiJjYWNoZSJ9?signature=78dc3ec23b54a0e7e222ed57ebff9cbcaf4d1ac2cf34a7a1c5e22c38c99b3183)
+Page Analyzer – это сайт, который анализирует указанные страницы на SEO-пригодность по аналогии с PageSpeed Insights.
 
 ## Установка и запуск приложения 
 1. Убедитесь, что у вас установлен PHP версии 8.1 или выше. В противном случае установите PHP версии 8.1 или выше.
