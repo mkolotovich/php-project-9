@@ -151,7 +151,7 @@ $app->post('/urls/{id}/checks', function ($request, $response, array $args) use 
             $stmt->bindValue(':status', $res->getStatusCode());
             $stmt->bindValue(':h1', $html->first('h1::text'));
             $stmt->bindValue(':title', $html->first('title::text'));
-            $stmt->bindValue(':description', $html->first('meta[name=description]')->getAttribute('content'));
+            $stmt->bindValue(':description', optional($html->first('meta[name=description]'))->getAttribute('content'));
             $stmt->bindValue(':date', Carbon::now());
             $stmt->execute();
             $this->get('flash')->addMessage('success', 'Страница успешно проверена');
