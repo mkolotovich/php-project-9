@@ -106,6 +106,7 @@ $app->post('/urls', function ($request, $response) use ($router, $conStr) {
         $error = 'URL не должен быть пустым';
     } elseif (in_array("Url.name is not a valid URL", $validator->errors()['url.name'])) {
         $error = 'Некорректный URL';
+        $response = $response->withStatus(422);
     } else {
         $error = 'URL превышает 255 символов';
     }
