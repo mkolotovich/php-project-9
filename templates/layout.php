@@ -21,7 +21,9 @@
             </div>
         </nav>
     </header>
-    <?=$content?>
+    <?php if (isset($content)): ?>
+        <?=$content?>
+    <?php endif ?>
     <footer class="border-top py-3 mt-5 flex-shrink-0">
         <div class="container-lg">
             <div class="text-center">

@@ -9,14 +9,14 @@ use DiDom\Document;
 
 session_start();
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
-if (file_exists(realpath(implode('/', [__DIR__ . '/../', '.env'])))) {
+if (file_exists(implode(DIRECTORY_SEPARATOR, [dirname(__DIR__), '.env']))) {
     $dotenv->load();
     $databaseUrl = parse_url($_ENV['DATABASE_URL']);
 } else {
-    $databaseUrl = parse_url(getenv('DATABASE_URL'));
+    $databaseUrl = parse_url(getenv('DATABASE_URL') ?: '');
 }
 
-$port = array_key_exists('port', $databaseUrl) ? $databaseUrl['port'] : 5432;
+$port = is_array($databaseUrl) && array_key_exists('port', $databaseUrl) ? $databaseUrl['port'] : 5432;
 
 $conStr = sprintf(
     "pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s",
@@ -96,15 +96,15 @@ $app->post('/urls', function ($request, $response) use ($router, $conStr) {
             $stmt->execute();
             $id = $pdo->lastInsertId();
             $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
-            return $response->withRedirect($router->urlFor('renderUrlPage', ['id' => $id]), 302);
+            return $response->withRedirect($router->urlFor('renderUrlPage', ['id' => (string)$id]), 302);
         } else {
             $this->get('flash')->addMessage('success', 'Страница уже существует');
             return $response->withRedirect($router->urlFor('renderUrlPage', ['id' => $id]), 302);
         }
     }
-    if (in_array("Url.name is required", $validator->errors()['url.name'])) {
+    if (is_array($validator->errors()) && in_array("Url.name is required", $validator->errors()['url.name'])) {
         $error = 'URL не должен быть пустым';
-    } elseif (in_array("Url.name is not a valid URL", $validator->errors()['url.name'])) {
+    } elseif (is_array($validator->errors()) && in_array("Url.name is not a valid URL", $validator->errors()['url.name'])) {
         $error = 'Некорректный URL';
         $response = $response->withStatus(422);
     } else {
@@ -143,6 +143,7 @@ $app->post('/urls/{id}/checks', function ($request, $response, array $args) use 
         $res = $client->get($name);
         if ($res->getStatusCode()) {
             $html = new Document($name, true);
+            $meta = $html->first('meta[name=description]');
             $sql = <<<EOT
             INSERT INTO url_checks(url_id, status_code, h1, title, description, created_at) 
             VALUES(:id, :status, :h1, :title, :description, :date)
@@ -152,7 +153,9 @@ $app->post('/urls/{id}/checks', function ($request, $response, array $args) use 
             $stmt->bindValue(':status', $res->getStatusCode());
             $stmt->bindValue(':h1', $html->first('h1::text'));
             $stmt->bindValue(':title', $html->first('title::text'));
-            $stmt->bindValue(':description', optional($html->first('meta[name=description]'))->getAttribute('content'));
+            if ($meta) {
+               $stmt->bindValue(':description', $meta->getAttribute('content')); 
+            }
             $stmt->bindValue(':date', Carbon::now());
             $stmt->execute();
             $this->get('flash')->addMessage('success', 'Страница успешно проверена');
