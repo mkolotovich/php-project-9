@@ -13,7 +13,9 @@
 <body class="min-vh-100 d-flex flex-column">
     <header class="flex-shrink-0">
         <nav class="navbar navbar-expand-md navbar-dark bg-dark px-3">
-            <a class="navbar-brand" href="/">Анализатор страниц</a>
+            <?php if (isset($router)) : ?>
+                <a class="navbar-brand" href="<?=$router->urlFor('main')?>">Анализатор страниц</a>
+            <?php endif ?>
             <div id="navbarNav">
                 <ul class="navbar-nav">
                     <li class="nav-item"><a class="nav-link " href="/urls">Сайты</a></li>
@@ -21,7 +23,7 @@
             </div>
         </nav>
     </header>
-    <?php if (isset($content)): ?>
+    <?php if (isset($content)) : ?>
         <?=$content?>
     <?php endif ?>
     <footer class="border-top py-3 mt-5 flex-shrink-0">

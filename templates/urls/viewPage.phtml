@@ -1,7 +1,7 @@
 <?php if (count($errors) > 0): ?>
     <?php foreach ($errors as $messages): ?>
         <?php foreach ($messages as $message): ?>
-            <div class="alert alert-success" role="alert"><?= $message ?></div>
+            <div class="alert alert-<?=array_keys($errors)[0]?>" role="alert"><?= $message ?></div>
         <?php endforeach ?>
     <?php endforeach ?>
 <?php endif ?>
@@ -45,12 +45,12 @@
                 <tbody>
                     <?php foreach ($checks as $check): ?>
                         <tr>
-                            <td><?= $check['id']?></td>
-                            <td><?= $check['status_code']?></td>
-                            <td><?= $check['h1']?></td>
-                            <td><?= $check['title']?></td>
-                            <td><?= $check['description']?></td>
-                            <td><?= $check['created_at']?></td>
+                            <td><?= $check->id?></td>
+                            <td><?= $check->status_code?></td>
+                            <td><?= $check->h1?></td>
+                            <td><?= $check->title?></td>
+                            <td><?= $check->description?></td>
+                            <td><?= $check->created_at?></td>
                         </tr>
                     <?php endforeach ?>
                 </tbody>

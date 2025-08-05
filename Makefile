@@ -4,7 +4,8 @@ dev:
 install:
 	composer install
 lint:
-	composer exec --verbose phpcs -- --standard=PSR12 templates public
+	composer exec --verbose phpcs -- --standard=PSR12 templates public src
+	vendor/bin/phpstan analyse public templates src --memory-limit 256M
 start:
 	PHP_CLI_SERVER_WORKERS=5 php -S 0.0.0.0:$(PORT) -t public
 db-prepare:

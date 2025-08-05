@@ -14,12 +14,12 @@
                 <tbody>
                     <?php foreach ($urls as $url): ?>
                         <tr>
-                            <td><?= $url['id'] ?></td>
+                            <td><?= $url->id ?></td>
                             <td>
-                                <a href="<?=$router->urlFor('renderUrlPage', ['id' => $url['id']])?>"><?= $url['name']?></a>
+                                <a href="<?=$router->urlFor('renderUrlPage', ['id' => $url->id])?>"><?= $url->name?></a>
                             </td>
-                            <td><?= $url[2]?></td>
-                            <td><?= $url['max'] ?></td>
+                            <td><?= $url->last_check_date?></td>
+                            <td><?= $url->status_code ?></td>
                         </tr>
                     <?php endforeach ?>
                 </tbody>
