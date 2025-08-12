@@ -3,7 +3,10 @@
     "autoload": {
         "psr-4": {
             "App\\": "src/"
-        }
+        },
+        "files": [
+            "src/Parser.php"
+        ]
     },
     "require": {
         "slim/slim": "^4.14",
