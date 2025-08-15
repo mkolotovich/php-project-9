@@ -3,10 +3,13 @@
 require __DIR__ . '/../vendor/autoload.php';
 
 use Slim\Factory\AppFactory;
+use Slim\Http\ServerRequest;
+use Slim\Http\Response;
 use DI\Container;
 use App\Connection;
-use App\Url;
-use App\Check;
+use App\UrlRepository;
+use App\CheckRepository;
+use function App\Parser\parse;
 
 session_start();
 
@@ -28,7 +31,7 @@ $app->addErrorMiddleware(true, true, true);
 
 $router = $app->getRouteCollector()->getRouteParser();
 
-$app->get('/', function ($request, $response) use ($router) {
+$app->get('/', function (ServerRequest $request, Response $response) use ($router): Response {
     $params = [
         'router' => $router,
         'errors' => [],
@@ -36,26 +39,27 @@ $app->get('/', function ($request, $response) use ($router) {
     return $this->get('renderer')->render($response, 'index.phtml', $params);
 })->setName('root');
 
-$app->get('/urls/{id}', function ($request, $response, array $args) use ($router, $container) {
+$app->get('/urls/{id}', function (ServerRequest $request, Response $response, array $args)
+ use ($router, $container): Response {
     $pdo = $container->get('db');
     $id = $args['id'];
-    $urlSelector = new Url($pdo);
-    $checkSelector = new Check($pdo);
-    $url = $urlSelector->selectUrlWithDate($id);
-    $checks = $checkSelector->selectCheck($id);
+    $UrlDAO = new UrlRepository($pdo);
+    $CheckDAO = new CheckRepository($pdo);
+    $url = $UrlDAO->selectUrl($id);
+    $checks = $CheckDAO->selectCheck($id);
     $messages = $this->get('flash')->getMessages();
     $params = [
+        'url' => $url->name,
+        'date' => $url->created_at,
         'id' => $id,
         'errors' => $messages,
         'router' => $router,
         'checks' => $checks
     ];
-    $params['url'] = $url->name ?? null;
-    $params['date'] = $url->created_at ?? null;
     return $this->get('renderer')->render($response, 'urls/viewPage.phtml', $params);
 })->setName('urls.show');
 
-$app->post('/urls', function ($request, $response) use ($router, $container) {
+$app->post('/urls', function (ServerRequest $request, Response $response) use ($router, $container): Response {
     $url = $request->getParsedBodyParam('url');
     $urlMaxLen = 255;
     $pdo = $container->get('db');
@@ -65,44 +69,40 @@ $app->post('/urls', function ($request, $response) use ($router, $container) {
     $validator->rule('lengthMax', 'url.name', $urlMaxLen)->message('URL превышает 255 символов');
     $parsedUrl = parse_url($url['name']);
     $normalizedUrl = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
-    $urlSelector = new Url($pdo);
-    $notUniqueUrl = $urlSelector->selectId($normalizedUrl);
-    if ($notUniqueUrl->id) {
+    $UrlDAO = new UrlRepository($pdo);
+    $existingUrl = $UrlDAO->selectId($normalizedUrl);
+    if ($existingUrl->id) {
         $this->get('flash')->addMessage('success', 'Страница уже существует');
-        return $response->withRedirect($router->urlFor('urls.show', ['id' => $notUniqueUrl->id]), 302);
-    } elseif ($validator->validate()) {
-        $id = $urlSelector->insertUrl($normalizedUrl);
+        return $response->withRedirect($router->urlFor('urls.show', ['id' => $existingUrl->id]), 302);
+    }
+    if ($validator->validate()) {
+        $id = $UrlDAO->insertUrl($normalizedUrl);
         $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
         return $response->withRedirect($router->urlFor('urls.show', ['id' => (string)$id]), 302);
     }
-    if (is_array($validator->errors())) {
-        $error = $validator->errors()['url.name'][0];
-        $response = $response->withStatus(422);
-        $params = [
-            'errors' => [$error],
-            'router' => $router,
-        ];
-        return $this->get('renderer')->render($response, "index.phtml", $params);
-    }
+    $error = optional($validator->errors())['url.name'][0];
+    $response = $response->withStatus(422);
+    $params = [
+        'errors' => [$error],
+        'router' => $router,
+    ];
+    return $this->get('renderer')->render($response, "index.phtml", $params);
 })->setName('urls.add');
 
-$app->get('/urls', function ($request, $response) use ($router, $container) {
+$app->get('/urls', function (ServerRequest $request, Response $response) use ($router, $container): Response {
     $pdo = $container->get('db');
-    $urlSelector = new Url($pdo);
-    $checkSelector = new Check($pdo);
-    $urls = $urlSelector->selectUrls();
-    $checks = $checkSelector->selectChecks();
-    $urlsWithChecks = array_map(function ($url) use ($checks) {
-        $obj = new stdClass();
-        $obj->id = $url->id;
-        $obj->name = $url->name;
-        $ids = array_column($checks, 'url_id');
-        if (in_array($url->id, $ids)) {
-            $index = array_search($url->id, $ids);
-            $obj->status_code = $checks[$index]->status_code;
-            $obj->last_check_date = $checks[$index]->created_at;
+    $UrlDAO = new UrlRepository($pdo);
+    $CheckDAO = new CheckRepository($pdo);
+    $urls = $UrlDAO->selectUrls();
+    $checks = $CheckDAO->selectChecks();
+    $checksIds = array_column($checks, 'url_id');
+    $urlsWithChecks = array_map(function ($url) use ($checks, $checksIds) {
+        if (in_array($url->id, $checksIds)) {
+            $index = array_search($url->id, $checksIds);
+            $url->status_code = $checks[$index]->status_code;
+            $url->last_check_date = $checks[$index]->created_at;
         }
-        return $obj;
+        return $url;
     }, $urls);
     $params = [
         'urls' => $urlsWithChecks,
@@ -112,16 +112,18 @@ $app->get('/urls', function ($request, $response) use ($router, $container) {
     return $this->get('renderer')->render($response, 'urls/viewPages.phtml', $params);
 })->setName('urls.index');
 
-$app->post('/urls/{id}/checks', function ($request, $response, array $args) use ($router, $container) {
+$app->post('/urls/{id}/checks', function (ServerRequest $request, Response $response, array $args)
+ use ($router, $container): Response {
     $pdo = $container->get('db');
     $id = $args['id'];
-    $urlSelector = new Url($pdo);
-    $url = $urlSelector->selectUrl((int)$id);
+    $UrlDAO = new UrlRepository($pdo);
+    $url = $UrlDAO->selectUrl((int)$id);
     try {
         $client = new GuzzleHttp\Client();
-        $res = $client->get($url->name ?? null);
-        $checkInserter = new Check($pdo);
-        $checkInserter->insertCheck($id, $res->getStatusCode(), $url->name ?? null);
+        $res = $client->get($url->name);
+        $CheckDAO = new CheckRepository($pdo);
+        $parsedData = parse($url->name);
+        $CheckDAO->insertCheck($id, $res->getStatusCode(), $parsedData);
         $this->get('flash')->addMessage('success', 'Страница успешно проверена');
     } catch (GuzzleHttp\Exception\ConnectException) {
         $this->get('flash')->addMessage('danger', 'Произошла ошибка при проверке, не удалось подключиться');

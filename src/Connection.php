@@ -6,7 +6,7 @@ final class Connection
 {
     private static ?Connection $conn = null;
 
-    public function readEnv()
+    public function readEnv(): string
     {
         $dotenv = \Dotenv\Dotenv::createImmutable(__DIR__ . '/../');
         $dotenv->safeLoad();
@@ -22,7 +22,7 @@ final class Connection
         );
     }
 
-    public function connect()
+    public function connect(): \PDO
     {
         define('DATABASE_URL', $this->readEnv());
         $pdo = new \PDO(DATABASE_URL);
@@ -31,7 +31,7 @@ final class Connection
         return $pdo;
     }
 
-    public static function get()
+    public static function get(): Connection
     {
         if (null === static::$conn) {
             static::$conn = new self();

@@ -4,9 +4,7 @@ namespace App;
 
 use Carbon\Carbon;
 
-use function App\Parser\parse;
-
-class Check
+class CheckRepository
 {
     private \PDO $pdo;
 
@@ -27,16 +25,17 @@ class Check
 
     public function selectChecks(): array
     {
-        $sql = "SELECT url_id, status_code, created_at FROM url_checks ORDER BY id DESC";
+        $sql = <<<EOT
+        SELECT DISTINCT ON (url_id) url_id, status_code, created_at FROM url_checks ORDER BY url_id, created_at DESC
+        EOT;
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute();
         $checks = $stmt->fetchAll(\PDO::FETCH_CLASS);
         return $checks;
     }
 
-    public function insertCheck(string $id, int $statusCode, string $name): void
+    public function insertCheck(string $id, int $statusCode, array $parsedData): void
     {
-        ['h1' => $h1, 'title' => $title, 'description' => $meta] = parse($name);
         $sql = <<<EOT
         INSERT INTO url_checks(url_id, status_code, h1, title, description, created_at) 
         VALUES(:id, :status, :h1, :title, :description, :date)
@@ -44,9 +43,9 @@ class Check
         $stmt = $this->pdo->prepare($sql);
         $stmt->bindValue(':id', $id);
         $stmt->bindValue(':status', $statusCode);
-        $stmt->bindValue(':h1', $h1);
-        $stmt->bindValue(':title', $title);
-        $stmt->bindValue(':description', $meta);
+        $stmt->bindValue(':h1', $parsedData['h1']);
+        $stmt->bindValue(':title', $parsedData['title']);
+        $stmt->bindValue(':description', $parsedData['description']);
         $stmt->bindValue(':date', Carbon::now());
         $stmt->execute();
     }

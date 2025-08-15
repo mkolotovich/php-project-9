@@ -4,7 +4,7 @@ namespace App\Parser;
 
 use DiDom\Document;
 
-function parse(string $name)
+function parse(string $name): array
 {
     $html = new Document($name, true);
     $meta = $html->first('meta[name=description]');
