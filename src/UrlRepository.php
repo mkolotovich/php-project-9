@@ -23,7 +23,10 @@ class UrlRepository
         return $url;
     }
 
-    public function selectId(string $url): mixed
+    /**
+     * @return Url|bool
+     */
+    public function selectId(string $url)
     {
         $sql = 'SELECT id FROM urls WHERE name=?';
         $stmt = $this->pdo->prepare($sql);

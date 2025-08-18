@@ -25,6 +25,8 @@ $container->set('flash', function () {
 });
 
 $container->set('db', Connection::get()->connect());
+$container->set('CheckRepository', new CheckRepository($container->get('db')));
+$container->set('UrlRepository', new UrlRepository($container->get('db')));
 
 $app = AppFactory::createFromContainer($container);
 $app->addErrorMiddleware(true, true, true);
@@ -41,12 +43,11 @@ $app->get('/', function (ServerRequest $request, Response $response) use ($route
 
 $app->get('/urls/{id}', function (ServerRequest $request, Response $response, array $args)
  use ($router, $container): Response {
-    $pdo = $container->get('db');
     $id = $args['id'];
-    $UrlDAO = new UrlRepository($pdo);
-    $CheckDAO = new CheckRepository($pdo);
-    $url = $UrlDAO->selectUrl($id);
-    $checks = $CheckDAO->selectCheck($id);
+    $UrlRepository = $container->get('UrlRepository');
+    $CheckRepository = $container->get('CheckRepository');
+    $url = $UrlRepository->selectUrl($id);
+    $checks = $CheckRepository->selectCheck($id);
     $messages = $this->get('flash')->getMessages();
     $params = [
         'url' => $url->name,
@@ -62,46 +63,40 @@ $app->get('/urls/{id}', function (ServerRequest $request, Response $response, ar
 $app->post('/urls', function (ServerRequest $request, Response $response) use ($router, $container): Response {
     $url = $request->getParsedBodyParam('url');
     $urlMaxLen = 255;
-    $pdo = $container->get('db');
     $validator = new Valitron\Validator($_POST);
     $validator->rule('required', 'url.name')->message("URL не должен быть пустым");
     $validator->rule('url', 'url.name')->message('Некорректный URL');
     $validator->rule('lengthMax', 'url.name', $urlMaxLen)->message('URL превышает 255 символов');
     $parsedUrl = parse_url($url['name']);
     $normalizedUrl = "{$parsedUrl['scheme']}://{$parsedUrl['host']}";
-    $UrlDAO = new UrlRepository($pdo);
-    $existingUrl = $UrlDAO->selectId($normalizedUrl);
+    $UrlRepository = $container->get('UrlRepository');
+    $existingUrl = $UrlRepository->selectId($normalizedUrl);
     if ($existingUrl->id) {
         $this->get('flash')->addMessage('success', 'Страница уже существует');
         return $response->withRedirect($router->urlFor('urls.show', ['id' => $existingUrl->id]), 302);
     }
     if ($validator->validate()) {
-        $id = $UrlDAO->insertUrl($normalizedUrl);
+        $id = $UrlRepository->insertUrl($normalizedUrl);
         $this->get('flash')->addMessage('success', 'Страница успешно добавлена');
         return $response->withRedirect($router->urlFor('urls.show', ['id' => (string)$id]), 302);
     }
-    $error = optional($validator->errors())['url.name'][0];
+    $error = optional($validator->errors())['url.name'];
     $response = $response->withStatus(422);
     $params = [
-        'errors' => [$error],
+        'errors' => [head($error)],
         'router' => $router,
     ];
     return $this->get('renderer')->render($response, "index.phtml", $params);
 })->setName('urls.add');
 
 $app->get('/urls', function (ServerRequest $request, Response $response) use ($router, $container): Response {
-    $pdo = $container->get('db');
-    $UrlDAO = new UrlRepository($pdo);
-    $CheckDAO = new CheckRepository($pdo);
-    $urls = $UrlDAO->selectUrls();
-    $checks = $CheckDAO->selectChecks();
-    $checksIds = array_column($checks, 'url_id');
-    $urlsWithChecks = array_map(function ($url) use ($checks, $checksIds) {
-        if (in_array($url->id, $checksIds)) {
-            $index = array_search($url->id, $checksIds);
-            $url->status_code = $checks[$index]->status_code;
-            $url->last_check_date = $checks[$index]->created_at;
-        }
+    $UrlRepository = $container->get('UrlRepository');
+    $CheckRepository = $container->get('CheckRepository');
+    $urls = $UrlRepository->selectUrls();
+    $urlsWithChecks = array_map(function ($url) use ($CheckRepository) {
+        [$lastCheck] = $CheckRepository->selectChecks($url->id);
+        $url->status_code = $lastCheck->status_code;
+        $url->last_check_date = $lastCheck->created_at;
         return $url;
     }, $urls);
     $params = [
@@ -114,16 +109,15 @@ $app->get('/urls', function (ServerRequest $request, Response $response) use ($r
 
 $app->post('/urls/{id}/checks', function (ServerRequest $request, Response $response, array $args)
  use ($router, $container): Response {
-    $pdo = $container->get('db');
     $id = $args['id'];
-    $UrlDAO = new UrlRepository($pdo);
-    $url = $UrlDAO->selectUrl((int)$id);
+    $UrlRepository = $container->get('UrlRepository');
+    $url = $UrlRepository->selectUrl((int)$id);
     try {
         $client = new GuzzleHttp\Client();
         $res = $client->get($url->name);
-        $CheckDAO = new CheckRepository($pdo);
+        $CheckRepository = $container->get('CheckRepository');
         $parsedData = parse($url->name);
-        $CheckDAO->insertCheck($id, $res->getStatusCode(), $parsedData);
+        $CheckRepository->insertCheck($id, $res->getStatusCode(), $parsedData);
         $this->get('flash')->addMessage('success', 'Страница успешно проверена');
     } catch (GuzzleHttp\Exception\ConnectException) {
         $this->get('flash')->addMessage('danger', 'Произошла ошибка при проверке, не удалось подключиться');

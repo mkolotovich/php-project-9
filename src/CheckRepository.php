@@ -19,18 +19,19 @@ class CheckRepository
         created_at FROM url_checks WHERE url_id=? ORDER BY id DESC";
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute([$id]);
-        $checks = $stmt->fetchAll(\PDO::FETCH_CLASS);
+        $checks = $stmt->fetchAll(\PDO::FETCH_CLASS, 'App\Check');
         return $checks;
     }
 
-    public function selectChecks(): array
+    public function selectChecks(int $id): array
     {
         $sql = <<<EOT
-        SELECT DISTINCT ON (url_id) url_id, status_code, created_at FROM url_checks ORDER BY url_id, created_at DESC
+        SELECT DISTINCT ON (url_id) url_id, status_code, created_at FROM url_checks WHERE url_id=? 
+        ORDER BY url_id, created_at DESC
         EOT;
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute();
-        $checks = $stmt->fetchAll(\PDO::FETCH_CLASS);
+        $stmt->execute([$id]);
+        $checks = $stmt->fetchAll(\PDO::FETCH_CLASS, 'App\Check');
         return $checks;
     }
 
